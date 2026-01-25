@@ -19,8 +19,14 @@ import type { BrowserManager } from './browserManager.js';
 const mockBrowserManager = {
   ensureConnection: vi.fn().mockResolvedValue(undefined),
   getDiscoveredTools: vi.fn().mockResolvedValue([
+    // Semantic tools
     { name: 'take_snapshot', description: 'Take snapshot' },
     { name: 'click', description: 'Click element' },
+    { name: 'fill', description: 'Fill form field' },
+    { name: 'navigate_page', description: 'Navigate to URL' },
+    // Visual tools (from --experimental-vision)
+    { name: 'click_at', description: 'Click at coordinates' },
+    { name: 'type_text', description: 'Type text' },
   ]),
   callTool: vi.fn().mockResolvedValue({ content: [] }),
   close: vi.fn().mockResolvedValue(undefined),
@@ -34,6 +40,7 @@ vi.mock('./browserManager.js', () => ({
 vi.mock('../../utils/debugLogger.js', () => ({
   debugLogger: {
     log: vi.fn(),
+    warn: vi.fn(),
     error: vi.fn(),
   },
 }));
@@ -48,8 +55,14 @@ describe('browserAgentFactory', () => {
     // Reset mock implementations
     mockBrowserManager.ensureConnection.mockResolvedValue(undefined);
     mockBrowserManager.getDiscoveredTools.mockResolvedValue([
+      // Semantic tools
       { name: 'take_snapshot', description: 'Take snapshot' },
       { name: 'click', description: 'Click element' },
+      { name: 'fill', description: 'Fill form field' },
+      { name: 'navigate_page', description: 'Navigate to URL' },
+      // Visual tools (from --experimental-vision)
+      { name: 'click_at', description: 'Click at coordinates' },
+      { name: 'type_text', description: 'Type text' },
     ]);
     mockBrowserManager.close.mockResolvedValue(undefined);
 
@@ -91,8 +104,8 @@ describe('browserAgentFactory', () => {
       );
 
       expect(definition.name).toBe(BrowserAgentDefinition.name);
-      // 2 MCP tools + 1 delegate_to_visual_agent tool
-      expect(definition.toolConfig?.tools).toHaveLength(3);
+      // 6 MCP tools + 1 delegate_to_visual_agent tool
+      expect(definition.toolConfig?.tools).toHaveLength(7);
     });
 
     it('should return browser manager for cleanup', async () => {

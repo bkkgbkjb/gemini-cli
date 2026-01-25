@@ -78,17 +78,23 @@ class McpToolInvocation extends BaseToolInvocation<
           .join('\n');
       }
 
+      // Post-process to add contextual hints for common error patterns
+      const processedContent = postProcessToolResult(
+        this.toolName,
+        textContent,
+      );
+
       if (result.isError) {
         return {
-          llmContent: `Error: ${textContent}`,
-          returnDisplay: `Error: ${textContent}`,
+          llmContent: `Error: ${processedContent}`,
+          returnDisplay: `Error: ${processedContent}`,
           error: { message: textContent },
         };
       }
 
       return {
-        llmContent: textContent || 'Tool executed successfully.',
-        returnDisplay: textContent || 'Tool executed successfully.',
+        llmContent: processedContent || 'Tool executed successfully.',
+        returnDisplay: processedContent || 'Tool executed successfully.',
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -165,10 +171,15 @@ export async function createMcpDeclarativeTools(
 
   return mcpTools.map((mcpTool) => {
     const schema = convertMcpToolToFunctionDeclaration(mcpTool);
+    // Augment description with uid-context hints
+    const augmentedDescription = augmentToolDescription(
+      mcpTool.name,
+      mcpTool.description ?? '',
+    );
     return new McpDeclarativeTool(
       browserManager,
       mcpTool.name,
-      mcpTool.description ?? '',
+      augmentedDescription,
       schema.parametersJsonSchema,
       messageBus,
     );
@@ -191,4 +202,93 @@ function convertMcpToolToFunctionDeclaration(
       properties: {},
     },
   };
+}
+
+/**
+ * Augments MCP tool descriptions with uid-context hints.
+ * Adds semantic guidance for tools that work with accessibility tree elements.
+ */
+function augmentToolDescription(toolName: string, description: string): string {
+  const uidHints: Record<string, string> = {
+    click:
+      ' Use the element uid from the accessibility tree snapshot (e.g., uid="87_4" for a button).',
+    fill: ' Use the element uid from the accessibility tree snapshot for input/select elements.',
+    hover:
+      ' Use the element uid from the accessibility tree snapshot to hover over elements.',
+    type: ' Type text into the currently focused element.',
+    scroll:
+      ' Scroll the page in the specified direction. Use after take_snapshot to see more content.',
+    take_snapshot:
+      ' Returns the accessibility tree with uid values for each element. Call this first to see available elements.',
+    navigate:
+      ' Navigate to the specified URL. Call take_snapshot after to see the new page.',
+    press_key:
+      ' Press a keyboard key. Use for Enter, Tab, Escape, arrow keys, etc.',
+  };
+
+  // Check for partial matches (e.g., "click" matches "click_element")
+  for (const [key, hint] of Object.entries(uidHints)) {
+    if (toolName.toLowerCase().includes(key)) {
+      return description + hint;
+    }
+  }
+
+  return description;
+}
+
+/**
+ * Post-processes tool results to add contextual hints for common error patterns.
+ * This helps the agent recover from overlay blocking, element not found, etc.
+ * Also strips embedded snapshots to prevent token bloat.
+ */
+export function postProcessToolResult(
+  toolName: string,
+  result: string,
+): string {
+  // Strip embedded snapshots to prevent token bloat
+  // MCP responses often include "## Latest page snapshot" with full AX tree
+  let processedResult = result;
+  if (result.includes('## Latest page snapshot')) {
+    const parts = result.split('## Latest page snapshot');
+    processedResult = parts[0].trim();
+    // Log that we stripped a snapshot for debugging
+    if (parts[1]) {
+      debugLogger.log('Stripped embedded snapshot from tool response');
+    }
+  }
+
+  // Detect overlay/interactable issues
+  const overlayPatterns = [
+    'not interactable',
+    'obscured',
+    'intercept',
+    'blocked',
+    'element is not visible',
+    'element not found',
+  ];
+
+  const isOverlayIssue = overlayPatterns.some((pattern) =>
+    processedResult.toLowerCase().includes(pattern),
+  );
+
+  if (isOverlayIssue && (toolName === 'click' || toolName.includes('click'))) {
+    return (
+      processedResult +
+      '\n\n⚠️ This action may have been blocked by an overlay, popup, or tooltip. ' +
+      'Look for close/dismiss buttons (×, Close, "Got it", "Accept") in the accessibility tree and click them first.'
+    );
+  }
+
+  // Detect stale element references
+  if (
+    processedResult.toLowerCase().includes('stale') ||
+    processedResult.toLowerCase().includes('detached')
+  ) {
+    return (
+      processedResult +
+      '\n\n⚠️ The element reference is stale. Call take_snapshot to get fresh element uids.'
+    );
+  }
+
+  return processedResult;
 }

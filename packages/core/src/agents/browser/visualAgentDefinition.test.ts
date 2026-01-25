@@ -18,8 +18,8 @@ describe('visualAgentDefinition', () => {
       expect(VisualAgentDefinition.kind).toBe('local');
     });
 
-    it('should use flash model for visual tasks', () => {
-      expect(VisualAgentDefinition.modelConfig.model).toContain('flash');
+    it('should use computer-use model for visual tasks', () => {
+      expect(VisualAgentDefinition.modelConfig.model).toContain('computer-use');
     });
 
     it('should have correct input schema', () => {
