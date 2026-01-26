@@ -12,7 +12,6 @@ import {
 import { makeFakeConfig } from '../../test-utils/config.js';
 import type { Config } from '../../config/config.js';
 import type { MessageBus } from '../../confirmation-bus/message-bus.js';
-import { BrowserAgentDefinition } from './browserAgentDefinition.js';
 import type { BrowserManager } from './browserManager.js';
 
 // Create mock browser manager
@@ -103,7 +102,7 @@ describe('browserAgentFactory', () => {
         mockMessageBus,
       );
 
-      expect(definition.name).toBe(BrowserAgentDefinition.name);
+      expect(definition.name).toBe('browser_agent');
       // 6 MCP tools + 1 delegate_to_visual_agent tool
       expect(definition.toolConfig?.tools).toHaveLength(7);
     });

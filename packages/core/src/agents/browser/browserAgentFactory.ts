@@ -117,8 +117,10 @@ export async function createBrowserAgentDefinition(
   );
 
   // Create configured definition with tools
+  // BrowserAgentDefinition is a factory function - call it with config
+  const baseDefinition = BrowserAgentDefinition(config);
   const definition: LocalAgentDefinition<typeof BrowserTaskResultSchema> = {
-    ...BrowserAgentDefinition,
+    ...baseDefinition,
     toolConfig: {
       tools: allTools,
     },
