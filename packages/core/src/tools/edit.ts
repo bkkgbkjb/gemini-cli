@@ -259,6 +259,110 @@ async function calculateRegexReplacement(
   };
 }
 
+async function calculateAgnosticReplacement(
+  context: ReplacementContext,
+): Promise<ReplacementResult | null> {
+  const { currentContent, params } = context;
+  const { old_string, new_string } = params;
+
+  const normalizedSearch = old_string.replace(/\r\n/g, '\n');
+  const normalizedReplace = new_string.replace(/\r\n/g, '\n');
+
+  const strippedSearch = normalizedSearch.replace(/\s+/g, '');
+  if (strippedSearch.length === 0) {
+    return null;
+  }
+
+  let strippedContent = '';
+  const originalIndices: number[] = [];
+
+  for (let i = 0; i < currentContent.length; i++) {
+    if (!/\s/.test(currentContent[i])) {
+      strippedContent += currentContent[i];
+      originalIndices.push(i);
+    }
+  }
+
+  let matchIndex = strippedContent.indexOf(strippedSearch);
+  if (matchIndex === -1) {
+    return null;
+  }
+
+  let occurrences = 0;
+  let currentIndex = 0;
+  let modifiedCode = '';
+  let lastOriginalEnd = 0;
+  let finalOldString = normalizedSearch;
+
+  while (matchIndex !== -1) {
+    occurrences++;
+    const startOriginalIdx = originalIndices[matchIndex];
+    const endOriginalIdx =
+      originalIndices[matchIndex + strippedSearch.length - 1] + 1;
+
+    let expandedStart = startOriginalIdx;
+    let expectedLeading = normalizedSearch.match(/^\s+/)?.[0] || '';
+    while (expandedStart > lastOriginalEnd && expectedLeading.length > 0) {
+      const charInFile = currentContent[expandedStart - 1];
+      const charExpected = expectedLeading[expectedLeading.length - 1];
+      if (
+        charInFile === charExpected ||
+        (/\s/.test(charInFile) && /\s/.test(charExpected))
+      ) {
+        if (/\s/.test(charInFile)) {
+          expandedStart--;
+          expectedLeading = expectedLeading.slice(0, -1);
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    let expandedEnd = endOriginalIdx;
+    let expectedTrailing = normalizedSearch.match(/\s+$/)?.[0] || '';
+    while (expandedEnd < currentContent.length && expectedTrailing.length > 0) {
+      const charInFile = currentContent[expandedEnd];
+      const charExpected = expectedTrailing[0];
+      if (
+        charInFile === charExpected ||
+        (/\s/.test(charInFile) && /\s/.test(charExpected))
+      ) {
+        if (/\s/.test(charInFile)) {
+          expandedEnd++;
+          expectedTrailing = expectedTrailing.slice(1);
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    if (occurrences === 1) {
+      finalOldString = currentContent.slice(expandedStart, expandedEnd);
+    }
+
+    modifiedCode += currentContent.slice(lastOriginalEnd, expandedStart);
+    modifiedCode += normalizedReplace;
+
+    lastOriginalEnd = expandedEnd;
+    currentIndex = matchIndex + strippedSearch.length;
+    matchIndex = strippedContent.indexOf(strippedSearch, currentIndex);
+  }
+
+  modifiedCode += currentContent.slice(lastOriginalEnd);
+  modifiedCode = restoreTrailingNewline(currentContent, modifiedCode);
+
+  return {
+    newContent: modifiedCode,
+    occurrences,
+    finalOldString,
+    finalNewString: normalizedReplace,
+  };
+}
+
 export async function calculateReplacement(
   config: Config,
   context: ReplacementContext,
@@ -296,6 +400,13 @@ export async function calculateReplacement(
     const event = new EditStrategyEvent('regex');
     logEditStrategy(config, event);
     return regexResult;
+  }
+
+  const agnosticResult = await calculateAgnosticReplacement(context);
+  if (agnosticResult) {
+    const event = new EditStrategyEvent('agnostic');
+    logEditStrategy(config, event);
+    return agnosticResult;
   }
 
   return {
