@@ -32,8 +32,9 @@ export interface ToolDefinition<T extends z.ZodTypeAny> {
   sendErrorsToModel?: boolean;
 }
 
-export interface Tool<T extends z.ZodTypeAny> extends ToolDefinition<T> {
-  action: (params: z.infer<T>, context?: SessionContext) => Promise<unknown>;
+export interface Tool<T extends z.ZodTypeAny = z.ZodTypeAny>
+  extends ToolDefinition<T> {
+  action(params: z.infer<T>, context?: SessionContext): Promise<unknown>;
 }
 
 class SdkToolInvocation<T extends z.ZodTypeAny> extends BaseToolInvocation<
