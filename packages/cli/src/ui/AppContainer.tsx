@@ -79,6 +79,7 @@ import {
   type AgentsDiscoveredPayload,
   ChangeAuthRequestedError,
   CoreToolCallStatus,
+  PolicyIntegrityManager,
 } from '@google/gemini-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import process from 'node:process';
@@ -152,6 +153,7 @@ import {
 } from './constants.js';
 import { LoginWithGoogleRestartDialog } from './auth/LoginWithGoogleRestartDialog.js';
 import { NewAgentsChoice } from './components/NewAgentsNotification.js';
+import { PolicyUpdateChoice } from './components/PolicyUpdateDialog.js';
 import { isSlashCommand } from './utils/commandUtils.js';
 import { useTerminalTheme } from './hooks/useTerminalTheme.js';
 import { useTimedMessage } from './hooks/useTimedMessage.js';
@@ -1414,6 +1416,35 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
   const { isFolderTrustDialogOpen, handleFolderTrustSelect, isRestarting } =
     useFolderTrust(settings, setIsTrustedFolder, historyManager.addItem);
+
+  const policyUpdateConfirmationRequest =
+    config.getPolicyUpdateConfirmationRequest();
+  const [isPolicyUpdateDialogOpen, setIsPolicyUpdateDialogOpen] = useState(
+    !!policyUpdateConfirmationRequest,
+  );
+  const [isRestartingPolicyUpdate, setIsRestartingPolicyUpdate] =
+    useState(false);
+
+  const handlePolicyUpdateSelect = useCallback(
+    async (choice: PolicyUpdateChoice) => {
+      if (
+        choice === PolicyUpdateChoice.ACCEPT &&
+        policyUpdateConfirmationRequest
+      ) {
+        const integrityManager = new PolicyIntegrityManager();
+        await integrityManager.acceptIntegrity(
+          policyUpdateConfirmationRequest.scope,
+          policyUpdateConfirmationRequest.identifier,
+          policyUpdateConfirmationRequest.newHash,
+        );
+        setIsRestartingPolicyUpdate(true);
+      } else {
+        setIsPolicyUpdateDialogOpen(false);
+      }
+    },
+    [policyUpdateConfirmationRequest],
+  );
+
   const {
     needsRestart: ideNeedsRestart,
     restartReason: ideTrustRestartReason,
@@ -1925,6 +1956,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     (shouldShowRetentionWarning && retentionCheckComplete) ||
     shouldShowIdePrompt ||
     isFolderTrustDialogOpen ||
+    isPolicyUpdateDialogOpen ||
     adminSettingsChanged ||
     !!commandConfirmationRequest ||
     !!authConsentRequest ||
@@ -2082,6 +2114,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isResuming,
       shouldShowIdePrompt,
       isFolderTrustDialogOpen: isFolderTrustDialogOpen ?? false,
+      isPolicyUpdateDialogOpen,
+      policyUpdateConfirmationRequest,
+      isRestartingPolicyUpdate,
       isTrustedFolder,
       constrainHeight,
       showErrorDetails,
@@ -2196,6 +2231,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isResuming,
       shouldShowIdePrompt,
       isFolderTrustDialogOpen,
+      isPolicyUpdateDialogOpen,
+      policyUpdateConfirmationRequest,
+      isRestartingPolicyUpdate,
       isTrustedFolder,
       constrainHeight,
       showErrorDetails,
@@ -2292,6 +2330,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       vimHandleInput,
       handleIdePromptComplete,
       handleFolderTrustSelect,
+      handlePolicyUpdateSelect,
       setConstrainHeight,
       onEscapePromptChange: handleEscapePromptChange,
       refreshStatic,
@@ -2372,6 +2411,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       vimHandleInput,
       handleIdePromptComplete,
       handleFolderTrustSelect,
+      handlePolicyUpdateSelect,
       setConstrainHeight,
       handleEscapePromptChange,
       refreshStatic,
