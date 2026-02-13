@@ -1597,13 +1597,14 @@ const SETTINGS_SCHEMA = {
         showInDialog: true,
       },
       plan: {
-        type: 'boolean',
+        type: 'object',
         label: 'Plan',
         category: 'Experimental',
         requiresRestart: true,
         default: false,
         description: 'Enable planning features (Plan Mode and tools).',
         showInDialog: true,
+        ref: 'PlanSettings',
       },
     },
   },
@@ -2090,6 +2091,30 @@ export const SETTINGS_SCHEMA_DEFINITIONS: Record<
           'Service account email to impersonate (name@project.iam.gserviceaccount.com).',
       },
     },
+  },
+  PlanSettings: {
+    description:
+      'Planning features settings. Can be a boolean flag or an object with additional configuration.',
+    anyOf: [
+      {
+        type: 'boolean',
+      },
+      {
+        type: 'object',
+        description: 'Planning features configuration.',
+        additionalProperties: false,
+        properties: {
+          enabled: {
+            type: 'boolean',
+            description: 'Enable planning features.',
+          },
+          directory: {
+            type: 'string',
+            description: 'Custom directory for implementation plans.',
+          },
+        },
+      },
+    ],
   },
   TelemetrySettings: {
     type: 'object',
