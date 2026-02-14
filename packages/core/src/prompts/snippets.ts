@@ -109,17 +109,13 @@ ${renderFinalReminder(options.finalReminder)}
  * Wraps the base prompt with user memory and approval mode plans.
  */
 export function renderFinalShell(
-  basePrompt: string,
+  _basePrompt: string,
   userMemory?: string,
-  planOptions?: ApprovalModePlanOptions,
+  _planOptions?: ApprovalModePlanOptions,
 ): string {
   return `
-${basePrompt.trim()}
-
 ${renderUserMemory(userMemory)}
-
-${renderApprovalModePlan(planOptions)}
-`.trim();
+`;
 }
 
 // --- Subsection Renderers ---

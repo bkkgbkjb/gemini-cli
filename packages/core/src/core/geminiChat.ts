@@ -16,6 +16,7 @@ import type {
   GenerateContentConfig,
   GenerateContentParameters,
 } from '@google/genai';
+import fs from 'node:fs';
 import { toParts } from '../code_assist/converter.js';
 import { createUserContent, FinishReason } from '@google/genai';
 import {
@@ -583,6 +584,16 @@ export class GeminiChat {
       lastModelToUse = modelToUse;
       lastConfig = config;
       lastContentsToUse = contentsToUse;
+
+      let debugStr = '';
+      debugStr += '---------debug starts--------\n';
+      debugStr += `contents: ${JSON.stringify(contentsToUse)}`;
+      debugStr += '\n';
+      debugStr += `config: ${config.systemInstruction}`;
+      debugStr += '-----------debug env\n';
+      fs.writeFileSync('./temp_debug_file.txt', debugStr, {
+        encoding: 'utf-8',
+      });
 
       return this.config.getContentGenerator().generateContentStream(
         {

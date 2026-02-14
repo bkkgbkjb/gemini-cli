@@ -83,22 +83,22 @@ export async function getInitialChatHistory(
   config: Config,
   extraHistory?: Content[],
 ): Promise<Content[]> {
-  const envParts = await getEnvironmentContext(config);
-  const envContextString = envParts.map((part) => part.text || '').join('\n\n');
+  // const envParts = await getEnvironmentContext(config);
+  // const envContextString = envParts.map((part) => part.text || '').join('\n\n');
 
-  const allSetupText = `
-${envContextString}
+  //   const allSetupText = `
+  // ${envContextString}
 
-Reminder: Do not return an empty response when a tool call is required.
+  // Reminder: Do not return an empty response when a tool call is required.
 
-My setup is complete. I will provide my first command in the next turn.
-    `.trim();
+  // My setup is complete. I will provide my first command in the next turn.
+  //     `.trim();
 
   return [
-    {
-      role: 'user',
-      parts: [{ text: allSetupText }],
-    },
+    // {
+    //   role: 'user',
+    //   parts: [{ text: allSetupText }],
+    // },
     ...(extraHistory ?? []),
   ];
 }
